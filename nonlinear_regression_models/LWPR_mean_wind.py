@@ -1,4 +1,81 @@
-from LWPR_mean.utils_mean import *
+# The original `from LWPR_mean.utils_mean import *` pointed to a module that was never shared.
+# The helpers below reconstruct it from the LWPR code in LWPR_quantile_wind.py.
+import torch
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+from sklearn.preprocessing import MinMaxScaler
+from tqdm import tqdm
+
+
+# Generate polynomial features (copied from LWPR_quantile_wind.py)
+def polynomial_features(x, order=2):
+    n = x.size(0)
+    features = [torch.ones(n)]
+    if x.shape[1] == 1:
+        for i in range(1, order + 1):
+            features.append(x[:, 0] ** (i))
+    if x.shape[1] == 2:
+        for i in range(1, order + 1):
+            for j in range(i + 1):
+                features.append((x[:, 0] ** (i - j)) * (x[:, 1] ** j))
+    return torch.cat([f.unsqueeze(1) for f in features], dim=1)
+
+
+# Tri-cube weight function (copied from LWPR_quantile_wind.py)
+def tri_cube(u):
+    return torch.where(u < 1, (1 - u ** 3) ** 3, torch.zeros_like(u))
+
+
+# Perform weighted least squares regression (copied from LWPR_quantile_wind.py)
+def weighted_least_squares(X, y, weights):
+    weighted_X = X * weights.unsqueeze(1)
+    XTWX = weighted_X.T @ X
+    XTWy = weighted_X.T @ y
+    beta = torch.linalg.pinv(XTWX) @ XTWy
+    return beta.squeeze()
+
+
+# Calculate weights for all points based on a fitting point and bandwidth (copied from LWPR_quantile_wind.py)
+def calculate_weights(data_points, fitting_point, bandwidth):
+    if fitting_point.dim() == 1:
+        fitting_point = fitting_point.unsqueeze(0)
+    distances = torch.sqrt(torch.sum((data_points - fitting_point) ** 2, axis=1))
+    return tri_cube(distances / bandwidth)
+
+
+# Calculate adaptive bandwidth based on the percentile of distances (copied from LWPR_quantile_wind.py)
+def adaptive_bandwidth(data_points, fitting_point, percentile=30):
+    if fitting_point.dim() == 1:
+        fitting_point = fitting_point.unsqueeze(0)
+    distances = torch.sqrt(torch.sum((data_points - fitting_point) ** 2, axis=1))
+    return torch.quantile(distances, percentile / 100.0)
+
+
+# Scale covariates to [-1, 1] and convert to tensors
+def process_data(data, covariates, response):
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    features = torch.tensor(scaler.fit_transform(data[covariates]), dtype=torch.float32)
+    target = torch.tensor(data[response].values, dtype=torch.float32)
+    return features, target, scaler
+
+
+# Local weighted quadratic regression evaluated on an n x n grid of fitting points in [-1, 1]^2
+def fit_model(features, target, n_fitting_points):
+    grid = torch.linspace(-1, 1, n_fitting_points)
+    grid_x, grid_y = torch.meshgrid(grid, grid, indexing='ij')
+    fitting_points = torch.stack([grid_x.ravel(), grid_y.ravel()], dim=1)
+    X_poly_base = polynomial_features(features)
+    predicted_values = torch.zeros(len(fitting_points))
+    for i, fp in enumerate(tqdm(fitting_points, desc="Fitting points (mean)")):
+        bandwidth = adaptive_bandwidth(features, fp, percentile=30)
+        weights = calculate_weights(features, fp, bandwidth)
+        beta = weighted_least_squares(X_poly_base, target, weights)
+        predicted_values[i] = (polynomial_features(fp.unsqueeze(0)) @ beta).squeeze()
+    return fitting_points, predicted_values
+
+
 import matplotlib as mpl
 import matplotlib.colors as mcolors
 
@@ -17,7 +94,7 @@ mpl.rcParams.update({
     'savefig.dpi': 300           # High DPI for saving the figure
 })
 
-df = pd.read_csv('/Users/dcac/Data/NESO/day_ahead_wind_portal_preprocessed_v2.csv')
+df = pd.read_csv('data/market_impact_renewables.csv')
 
 # Define covariates and response
 covariates = ['forecasted_wind_penetration', 'Hour']
@@ -66,6 +143,6 @@ ax.set_ylabel('Hour of the day', labelpad=10)
 ax.set_zlabel('Price [GBP/MWh]', labelpad=10)
 # ax.set_zlim(-80, 200)
 plt.tight_layout()
-plt.savefig(f'/Users/dcac/PycharmProjects/day-ahead-wind-forecast/causal_analysis_wind_solar/plots/LWPR_wind.png',
+plt.savefig(f'outputs/LWPR_wind.png',
             format='png', dpi=600)
 plt.show()

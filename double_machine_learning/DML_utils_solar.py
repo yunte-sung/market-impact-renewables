@@ -24,6 +24,7 @@ def residualize_variable_kfold(data, y_var, x_vars, n_folds=5):
             'metric': 'mse',
             'learning_rate': 0.1,
             'max_depth': 5,
+            'num_threads': 1,  # Single thread is much faster on small data (and lets us parallelise windows)
             'verbose': -1
         }
         lgb_train = lgb.Dataset(X_train, y_train)

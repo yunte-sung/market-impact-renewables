@@ -116,7 +116,7 @@ else:
     exit()
 
 # Data setup
-df = pd.read_csv('/Users/dcac/Data/NESO/day_ahead_wind_portal_preprocessed_v2.csv')
+df = pd.read_csv('data/market_impact_renewables.csv')
 df['Date'] = pd.to_datetime(df['Date'])
 df.set_index('Date', inplace=True)
 covariates = ['forecasted_wind_penetration']
@@ -253,7 +253,7 @@ ax.set_ylabel('Price [GBP/MWh]', fontsize=18, labelpad=10)
 # plt.legend([line_mean, line_lower, line_upper], ['Mean prediction', '10% quantile', '90% quantile'], loc='upper right',
 #            fontsize=14)
 plt.tight_layout()
-plt.savefig(f'/Users/dcac/PycharmProjects/day-ahead-wind-forecast/causal_analysis_wind_solar/plots/quantile_wind.png', format='png', dpi=600)
+plt.savefig(f'outputs/quantile_wind.png', format='png', dpi=600)
 plt.show()
 
 

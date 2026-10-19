@@ -2,12 +2,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from joblib import Parallel, delayed
 from scipy.ndimage import gaussian_filter1d
 from double_machine_learning.DML_utils_wind import residualize_data, fit_residualized_model
 
 
 # Load data
-df = pd.read_csv('/Users/dcac/Data/NESO/day_ahead_wind_portal_preprocessed_v2.csv')
+df = pd.read_csv('data/market_impact_renewables.csv')
 df['Date'] = pd.to_datetime(df['Date'])
 df.set_index('Date', inplace=True)
 
@@ -31,34 +32,40 @@ results = []
 # Total number of windows
 total_windows = (len(df) - window_size) // step_size + 1
 
+# Bootstrap for one window (windows are run in parallel across CPU cores)
+def bootstrap_window(window_data):
+    cates = []
+    for _ in range(n_iterations):
+        random_subset = window_data.sample(n=min(len(window_data), window_size), replace=True)
+        df_residualized = residualize_data(random_subset, y='Day Ahead APX Price')
+        res = fit_residualized_model(df_residualized)
+        cates.append(res[0])  # Extract the first (and only) coefficient
+    return cates
+
+
 # Sliding window analysis
-for start in range(0, len(df) - window_size + 1, step_size):
-    window_data = df.iloc[start:start + window_size]
+starts = range(0, len(df) - window_size + 1, step_size)
+window_cates = Parallel(n_jobs=-1, return_as='generator')(
+    delayed(bootstrap_window)(df.iloc[start:start + window_size]) for start in starts
+)
 
-    # Calculate the mean solar penetration for the current window
-    mean_wind_penetration = window_data['forecasted_wind_penetration'].mean()
+for start, cates in tqdm(zip(starts, window_cates), total=total_windows, desc='Windows'):
+    # Calculate the mean wind penetration for the current window
+    mean_wind_penetration = df.iloc[start:start + window_size]['forecasted_wind_penetration'].mean()
 
-    # Use tqdm for bootstrap iterations
-    with tqdm(total=n_iterations, desc=f'Window {start // step_size + 1}/{total_windows}', leave=False) as pbar:
-        # Bootstrap for the current window
-        for _ in range(n_iterations):
-            random_subset = window_data.sample(n=min(len(window_data), window_size), replace=True)
-            df_residualized = residualize_data(random_subset, y='Day Ahead APX Price')
-            res = fit_residualized_model(df_residualized)
-
-            # Append the mean solar penetration and CATE to results
-            results.append({
-                'mean_wind_penetration': mean_wind_penetration,
-                'cate': res[0]  # Extract the first (and only) coefficient
-            })
-            pbar.update(1)  # Update the progress bar
+    # Append the mean wind penetration and CATE to results
+    for cate in cates:
+        results.append({
+            'mean_wind_penetration': mean_wind_penetration,
+            'cate': cate
+        })
 
 # Convert results to DataFrame
 results_df = pd.DataFrame(results)
 
 # Save raw results
-results_df.to_csv('/Users/dcac/PycharmProjects/day-ahead-wind-forecast/causal_analysis_wind_solar/plots/results_wind_apx.csv', index=False)
-results_dataset = pd.read_csv('/Users/dcac/PycharmProjects/day-ahead-wind-forecast/causal_analysis_wind_solar/plots/results_wind_apx.csv')
+results_df.to_csv('outputs/results_wind_apx.csv', index=False)
+results_dataset = pd.read_csv('outputs/results_wind_apx.csv')
 
 # Group by mean solar penetration and calculate mean and quantiles for CATE
 mean_cate_df = results_dataset.groupby('mean_wind_penetration')['cate'].agg(['mean']).reset_index()

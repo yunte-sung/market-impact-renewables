@@ -7,12 +7,12 @@ from scipy.ndimage import gaussian_filter1d
 
 
 # Load dataset
-df = pd.read_csv('/Users/dcac/Data/NESO/day_ahead_wind_portal_preprocessed_v2.csv')
+df = pd.read_csv('data/market_impact_renewables.csv')
 df['Date'] = pd.to_datetime(df['Date'])
 df.set_index('Date', inplace=True)
 
 # Extract necessary columns
-df = df[['forecasted_solar_penetration', 'Within Day Price (MIDP)']]
+df = df[['forecasted_solar_penetration', 'Day Ahead APX Price']]
 
 # Sort the dataset by penetration for smoother sliding window
 df = df.sort_values('forecasted_solar_penetration')
@@ -42,7 +42,7 @@ for i in range(0, len(df) - window_size + 1, step_size):
 
     # Extract the data for bootstrap
     penetration_data = window['forecasted_solar_penetration'].values
-    price_data = window['Within Day Price (MIDP)'].values
+    price_data = window['Day Ahead APX Price'].values
 
     # Perform bootstrap for solar penetration and price
     penetration_ci_low, penetration_ci_high, penetration_mean = apply_bootstrap(penetration_data)
@@ -55,7 +55,7 @@ for i in range(0, len(df) - window_size + 1, step_size):
     ci_upper.append(price_ci_high)
 
 # Load solar results
-results_dataset_solar = pd.read_csv('/Users/dcac/PycharmProjects/day-ahead-wind-forecast/causal_analysis_wind_solar/results/results_solar_nordpool.csv')
+results_dataset_solar = pd.read_csv('outputs/results_solar_apx.csv')
 
 # Group by mean solar penetration and calculate mean and quantiles for CATE
 mean_cate_df_solar = results_dataset_solar.groupby('mean_solar_penetration')['cate'].agg(['mean']).reset_index()
@@ -98,6 +98,6 @@ ax2.tick_params(axis='x', labelcolor='gray', labelsize=14)
 fig.legend(fontsize=14, ncol=1, bbox_to_anchor=(0.83, 0.88), frameon=True)
 plt.tight_layout()
 # Save the plot
-plt.savefig('/Users/dcac/PycharmProjects/day-ahead-wind-forecast/causal_analysis_wind_solar/plots/mean_vs_cate_solar_nordpool.png', format='png', dpi=600)
+plt.savefig('outputs/mean_vs_cate_solar.png', format='png', dpi=600)
 plt.show()
 
