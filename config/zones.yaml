@@ -1,0 +1,27 @@
+# External daily series (not from ENTSO-E) - zones refer to these by key
+external_series:
+  gas_ttf:
+    file: data/external/ttf_daily.csv
+    source: data/external/source/ttf/ttf_investing_2017-12-01_2025-12-31.csv
+    unit: EUR/MWh
+  carbon_price:
+    file: data/external/eua_daily.csv
+    source: data/external/source/eua/emission-spot-primary-market-auction-report-2012-2025-data
+    unit: EUR/t
+
+# One entry per zone - every zone has every key, even if empty
+zones:
+  DE_LU:
+    name: "Germany-Luxembourg"
+    entsoe_code: "DE_LU"
+    timezone: "Europe/Berlin"
+    start_date: "2019-01-01" # start of zone in 2019 (2018 data after DE-AT-LU split in October is patchy)
+    end_date: "2025-12-31" # inclusive, local time zone
+    daylight_location: # Niederdorla, geographic centre of Germany
+      lat: 51.161
+      lon: 10.449
+    gas_series: "gas_ttf"
+    co2_series: "carbon_price"
+    gas_cap: null
+    extra_controls: [] # names from schema.OPTIONAL
+    neighbours: ["AT", "BE", "CH", "CZ", "DK_1", "DK_2", "FR", "NO_2", "NL", "PL", "SE_4"]
