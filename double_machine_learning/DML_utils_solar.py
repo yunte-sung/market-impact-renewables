@@ -4,6 +4,8 @@ from sklearn.model_selection import KFold
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from analysis_settings import UK_COLUMNS
+from data_pipeline import schema
 
 
 def residualize_variable_kfold(data, y_var, x_vars, n_folds=5):
@@ -38,12 +40,18 @@ def residualize_variable_kfold(data, y_var, x_vars, n_folds=5):
 
 
 # Residualize data
-def residualize_data(data, y='Day Ahead APX Price', n_folds=5):
+# cols maps standard names (schema.py) to the dataset's column names; default is original UK names
+def residualize_data(data, y=None, n_folds=5, cols=UK_COLUMNS):
+    c = cols
+    y = y or c[schema.PRICE]
     data['solar_production_resid'] = residualize_variable_kfold(
-        data, 'solar_forecast', ['solar_capacity', 'Daylight Hours', 'Hour', 'Month'], n_folds=n_folds
+        data, 
+        c[schema.SOLAR_FORECAST], 
+        [c[schema.SOLAR_CAPACITY], c[schema.DAYLIGHT_HOURS], c[schema.HOUR], c[schema.MONTH]], 
+        n_folds=n_folds
     )
-    confounders = ['Daylight Hours', 'Hour', 'Year', 'Month', 'Day', 'estimated_load', 'MID_NBP', 'MID_CO2',
-                   'wind_forecast']
+    confounders = [c[schema.DAYLIGHT_HOURS], c[schema.HOUR], c[schema.YEAR], c[schema.MONTH], c[schema.DAY_OF_WEEK],
+                   c[schema.LOAD_FORECAST], c[schema.GAS_PRICE], c[schema.CO2_PRICE], c[schema.WIND_FORECAST]]
     data['spot_price_resid'] = residualize_variable_kfold(
         data, y, confounders, n_folds=n_folds
     )
