@@ -42,7 +42,8 @@ def get_analysis_settings(zone=None):
             "file_suffix": "_apx",
             "currency": "GBP",
             "solar_daylight_only": False, # original UK setup includes all hours for solar
-            "n_iterations": n_iter
+            "n_iterations": n_iter,
+            "plot_smoothing_sigma": None,     # None = original rule (1.5 x std); or a fixed number of windows
         }
     return {
         "zone": zone,
@@ -53,5 +54,6 @@ def get_analysis_settings(zone=None):
         "file_suffix": "",
         "currency": "EUR",
         "solar_daylight_only": True,                  # solar model: hours with solar forecast > 0
-        "n_iterations": n_iter
+        "n_iterations": n_iter,
+        "plot_smoothing_sigma": None,     # None = original rule (1.5 x std); or a fixed number of windows
     }
