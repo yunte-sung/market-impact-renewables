@@ -1,0 +1,50 @@
+=== DK_1 DML_overall_wind Sat Nov 28 00:18:16 CET 2026
+Zone DK_1: 100 bootstraps per window -> /Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/outputs/DK_1/2020-2025/results_wind.csv
+Period 2020-01-01 to 2025-12-31: 52032 hours
+Windows:   0%|          | 0/43 [00:00<?, ?it/s]Windows:   2%|▏         | 1/43 [00:36<25:24, 36.29s/it]Windows:   5%|▍         | 2/43 [00:36<10:23, 15.20s/it]Windows:   7%|▋         | 3/43 [00:37<05:38,  8.47s/it]Windows:  14%|█▍        | 6/43 [00:37<01:47,  2.90s/it]Windows:  19%|█▊        | 8/43 [00:37<01:03,  1.83s/it]Windows:  23%|██▎       | 10/43 [00:37<00:40,  1.24s/it]Windows:  30%|███       | 13/43 [00:38<00:21,  1.37it/s]Windows:  30%|███       | 13/43 [00:50<00:21,  1.37it/s]Windows:  35%|███▍      | 15/43 [01:15<02:45,  5.91s/it]Windows:  40%|███▉      | 17/43 [01:15<01:49,  4.21s/it]Windows:  44%|████▍     | 19/43 [01:15<01:12,  3.01s/it]Windows:  53%|█████▎    | 23/43 [01:15<00:33,  1.66s/it]Windows:  60%|██████    | 26/43 [01:16<00:19,  1.15s/it]Windows:  65%|██████▌   | 28/43 [01:16<00:13,  1.12it/s]Windows:  65%|██████▌   | 28/43 [01:30<00:13,  1.12it/s]Windows:  67%|██████▋   | 29/43 [01:53<01:25,  6.12s/it]Windows:  70%|██████▉   | 30/43 [01:53<01:06,  5.13s/it]Windows:  79%|███████▉  | 34/43 [01:53<00:23,  2.62s/it]Windows: 100%|██████████| 43/43 [02:19<00:00,  2.78s/it]Windows: 100%|██████████| 43/43 [02:19<00:00,  3.25s/it]
+/Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/double_machine_learning/DML_overall_wind.py:119: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/double_machine_learning/DML_overall_wind.py:133: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+Smoothing sigma: 0.00 windows
+=== DK_1 DML_overall_solar Sat Nov 28 00:20:38 CET 2026
+Zone DK_1: 100 bootstraps per window -> /Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/outputs/DK_1/2020-2025/results_solar.csv
+Period 2020-01-01 to 2025-12-31: 52032 hours
+Solar model: 26444 of 52032 hours with sun above horizon > 0
+Windows:   0%|          | 0/17 [00:00<?, ?it/s]Windows:   6%|▌         | 1/17 [00:37<10:07, 37.95s/it]Windows:  88%|████████▊ | 15/17 [01:05<00:07,  3.69s/it]Windows:  94%|█████████▍| 16/17 [01:05<00:03,  3.38s/it]Windows: 100%|██████████| 17/17 [01:05<00:00,  3.87s/it]
+/Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/double_machine_learning/DML_overall_solar.py:121: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/double_machine_learning/DML_overall_solar.py:135: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+Smoothing sigma: 0.00 windows
+=== DK_1 dml_vs_mean_plot_wind Sat Nov 28 00:21:45 CET 2026
+/Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/double_machine_learning/dml_vs_mean_plot_wind.py:118: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+Period 2020-01-01 to 2025-12-31: 52032 hours
+Smoothing sigma: 0.00 windows
+=== DK_1 dml_vs_mean_plot_solar Sat Nov 28 00:21:55 CET 2026
+/Users/sanjeevdasgupta/Documents/Hertie/Fall 2026/Empirical Environmental Economics/market-impact-renewables/double_machine_learning/dml_vs_mean_plot_solar.py:123: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+Period 2020-01-01 to 2025-12-31: 52032 hours
+Smoothing sigma: 0.00 windows
+=== DK_1 normalize_results Sat Nov 28 00:21:59 CET 2026
+zone                                         DK_1
+period_start            2019-12-31 23:00:00+00:00
+period_end              2025-12-31 22:00:00+00:00
+mean_load_mw                               2517.2
+gw_per_pct_load                            0.0252
+mean_price_eur_per_MWh                      93.93
+
+wind: window means (first, middle, last)
+                        cate  cate_per_pct_load  cate_pct_of_price
+mean_wind_penetration                                             
+11.437976             -20.30              -0.51              -0.54
+53.396999             -23.69              -0.60              -0.63
+123.142366            -19.18              -0.48              -0.51
+
+solar: window means (first, middle, last)
+                        cate  cate_per_pct_load  cate_pct_of_price
+mean_solar_penetration                                            
+2.080128               -0.94              -0.02              -0.03
+9.381861               -5.39              -0.14              -0.14
+28.853048              -5.78              -0.15              -0.15

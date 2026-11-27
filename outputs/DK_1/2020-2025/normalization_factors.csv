@@ -1,0 +1,2 @@
+zone,period_start,period_end,mean_load_mw,gw_per_pct_load,mean_price_eur_per_MWh
+DK_1,2019-12-31 23:00:00+00:00,2025-12-31 22:00:00+00:00,2517.2,0.0252,93.93
