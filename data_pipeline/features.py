@@ -40,6 +40,15 @@ def daylight_hours(index, zone):
     per_date = {d: _daylight_length(observer, d, tz) for d in sorted(set(local_dates))} # once per date
     return pd.Series([per_date[d] for d in local_dates], index=index, name=schema.DAYLIGHT_HOURS)
 
+# 1 if the sun is above the horizon at the middle of the hour at the zone's daylight location, else 0
+# used to select daylight hours for the solar model (solar forecasts can be > 0 at night, e.g. ES)
+def sun_up(index, zone):
+    loc = zone["daylight_location"]
+    observer = Observer(latitude=loc["lat"], longitude=loc["lon"])
+    mid = index + pd.Timedelta(minutes=30)
+    up = [elevation(observer, t.to_pydatetime()) > 0 for t in mid]
+    return pd.Series(up, index=index, name=schema.SUN_UP).astype(int)
+
 # calculation wind / solar penetration from forecast data
 def penetration(df):
     return pd.DataFrame({
@@ -54,7 +63,8 @@ def add_features(df, code):
         df,
         penetration(df),
         calendar_features(df.index, zone["timezone"]),
-        daylight_hours(df.index, zone)
+        daylight_hours(df.index, zone),
+        sun_up(df.index, zone)
     ], axis=1)
 
 # same as other files - prevents from running immediately on initial import into notebook

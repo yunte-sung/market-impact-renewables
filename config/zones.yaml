@@ -8,6 +8,10 @@ external_series:
     file: data/external/eua_daily.csv
     source: data/external/source/eua/emission-spot-primary-market-auction-report-2012-2025-data
     unit: EUR/t
+  gas_mibgas:
+    file: data/external/mibgas_daily.csv
+    source: data/external/source/mibgas
+    unit: EUR/MWh
 
 # One entry per zone - every zone has every key, even if empty
 zones:
@@ -25,3 +29,85 @@ zones:
     gas_cap: null
     extra_controls: [] # names from schema.OPTIONAL
     neighbours: ["AT", "BE", "CH", "CZ", "DK_1", "DK_2", "FR", "NO_2", "NL", "PL", "SE_4"]
+    capacity_source: "entsoe"
+
+  FR:
+    name: "France"
+    entsoe_code: "FR"
+    timezone: "Europe/Paris"
+    start_date: "2019-01-01"
+    end_date: "2025-12-31"
+    daylight_location: # approx. centre of mainland France
+      lat: 46.60
+      lon: 2.45
+    gas_series: "gas_ttf"
+    co2_series: "carbon_price"
+    gas_cap: null
+    extra_controls: []
+    neighbours: []
+    capacity_source: "entsoe"
+
+  DK_1:
+    name: "Denmark West (DK1)"
+    entsoe_code: "DK_1"
+    timezone: "Europe/Copenhagen"
+    start_date: "2019-01-01"
+    end_date: "2025-12-31"
+    daylight_location: # approx. centre of Jutland
+      lat: 56.00
+      lon: 9.20
+    gas_series: "gas_ttf"
+    co2_series: "carbon_price"
+    gas_cap: null
+    extra_controls: []
+    neighbours: []
+    capacity_source: "energinet"
+
+  PL:
+    name: "Poland"
+    entsoe_code: "PL"
+    timezone: "Europe/Warsaw"
+    start_date: "2020-01-01"
+    end_date: "2025-12-31"
+    daylight_location: # approx. centre of Poland
+      lat: 52.00
+      lon: 19.10
+    gas_series: "gas_ttf"
+    co2_series: "carbon_price"
+    gas_cap: null
+    extra_controls: []
+    neighbours: []
+    capacity_source: "entsoe"
+
+  ES:
+    name: "Spain"
+    entsoe_code: "ES"
+    timezone: "Europe/Madrid"
+    start_date: "2019-01-01"
+    end_date: "2025-12-31"
+    daylight_location: # approx. centre of mainland Spain
+      lat: 40.31
+      lon: -3.68
+    gas_series: "gas_mibgas" 
+    co2_series: "carbon_price"
+    gas_cap: "iberian" # Iberian exception: gas = min(lagged MIBGAS, reference price), 15 Jun 2022 - 31 Dec 2023
+    extra_controls: []
+    neighbours: []
+    capacity_source: "entsoe"
+  
+  FI:
+    name: "Finland"
+    entsoe_code: "FI"
+    timezone: "Europe/Helsinki"
+    start_date: "2020-01-01"
+    end_date: "2025-12-31"
+    daylight_location: # approx. centre of Finland
+      lat: 64.00
+      lon: 26.00
+    gas_series: "gas_ttf"
+    co2_series: "carbon_price"
+    gas_cap: null
+    extra_controls: []
+    neighbours: []
+    capacity_source: "fingrid"
+

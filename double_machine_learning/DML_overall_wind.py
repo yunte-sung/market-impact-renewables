@@ -7,9 +7,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from scipy.ndimage import gaussian_filter1d
 
-from analysis_settings import get_analysis_settings
+from analysis_settings import get_analysis_settings, smooth, filter_period
 from data_pipeline import schema
 from double_machine_learning.DML_utils_wind import residualize_data, fit_residualized_model
 
@@ -27,6 +26,8 @@ print(f"Zone {S['zone']}: {S['n_iterations']} bootstraps per window -> {results_
 df = pd.read_csv(S["data_path"])
 df[S["index_col"]] = pd.to_datetime(df[S["index_col"]])
 df.set_index(S["index_col"], inplace=True)
+df = filter_period(df, S)
+print(f"Period {S['period_start']} to {S['period_end']}: {len(df)} hours")
 
 # Scale the relevant columns (MW -> GW)
 df[c[schema.LOAD_FORECAST]] = df[c[schema.LOAD_FORECAST]] / 1000
@@ -88,14 +89,16 @@ mean_cate_df = results_dataset.groupby('mean_wind_penetration')['cate'].agg(['me
 mean_cate_df['lower_ci'] = results_dataset.groupby('mean_wind_penetration')['cate'].quantile(0.1).values
 mean_cate_df['upper_ci'] = results_dataset.groupby('mean_wind_penetration')['cate'].quantile(0.9).values
 
-# Apply Gaussian smoothing
-sigma_smoothing = np.var(mean_cate_df['mean'])
+# Apply Gaussian smoothing (sigma 0 = none, see analysis_settings)
+sigma_smoothing = S["plot_smoothing_sigma"]
+if sigma_smoothing is None: # original rule, kept for the UK
+    sigma_smoothing = np.var(mean_cate_df['mean'])
 print(f"Smoothing sigma: {sigma_smoothing:.2f} windows")
-mean_cate_df['smoothed_mean'] = gaussian_filter1d(mean_cate_df['mean'], sigma=sigma_smoothing)
-mean_cate_df['smoothed_lower_ci'] = gaussian_filter1d(mean_cate_df['lower_ci'], sigma=sigma_smoothing)
-mean_cate_df['smoothed_upper_ci'] = gaussian_filter1d(mean_cate_df['upper_ci'], sigma=sigma_smoothing)
+mean_cate_df['smoothed_mean'] = smooth(mean_cate_df['mean'], sigma_smoothing)
+mean_cate_df['smoothed_lower_ci'] = smooth(mean_cate_df['lower_ci'], sigma_smoothing)
+mean_cate_df['smoothed_upper_ci'] = smooth(mean_cate_df['upper_ci'], sigma_smoothing)
 
-# Plotting the smoothed mean CATE against mean wind penetration with 80% CI
+# Plotting the mean CATE against mean wind penetration with 80% CI
 plt.figure(figsize=(6, 6), dpi=300)
 plt.plot(mean_cate_df['smoothed_mean'], mean_cate_df['mean_wind_penetration'], marker='', linestyle='-',
          color='b', label='Mean', lw=3)

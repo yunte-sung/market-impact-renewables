@@ -24,7 +24,8 @@ HOUR = "hour" # 0-23
 DAY_OF_WEEK = "day_of_week" # 0 = Monday ... 6 = Sunday
 MONTH = "month" # 1-12
 YEAR = "year"
-DAYLIGHT_HOURS = "daylight_hours" # sunrise to sunset hours
+DAYLIGHT_HOURS = "daylight_hours" # sunrise to sunset 
+SUN_UP = "sun_up" # 1 if the sun is above the horizon at mid-hour (daylight_location), else 0
 
 # Core columns: every zone has these, in this order (excluding timestamp index)
 COLUMNS = [
@@ -34,7 +35,7 @@ COLUMNS = [
     WIND_CAPACITY, SOLAR_CAPACITY,
     GAS_PRICE, CO2_PRICE,
     WIND_PENETRATION, SOLAR_PENETRATION,
-    HOUR, DAY_OF_WEEK, MONTH, YEAR, DAYLIGHT_HOURS
+    HOUR, DAY_OF_WEEK, MONTH, YEAR, DAYLIGHT_HOURS, SUN_UP
 ]
 
 # Core inputs that must be present for an hour to be kept (calendar and penetration calculated from index and these)

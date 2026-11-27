@@ -1,4 +1,4 @@
-# turns multiple raw ENTSO-E files from one zone into one combined hourly table with a UTC time index
+# turns multiple raw ENTSO-E files (plus Energinet for DK1 and Fingrid for FI) from one zone into one combined hourly table with a UTC time index
 # to run from repo root: uv run python -m data_pipeline.clean --zone DE_LU
 
 import argparse
@@ -7,6 +7,12 @@ from data_pipeline import schema
 from zone_settings import ROOT, get_zone
 
 RAW_DIR = ROOT / "data" / "raw" / "entsoe"
+ENERGINET_FILE = ROOT / "data/external/source/energinet/capacity_per_municipality.csv"
+# Energinet municipality numbers by price area; anything outside these ranges (e.g. code 1) is excluded
+ENERGINET_AREAS = {"DK_1": (410, 860), "DK_2": (101, 400)}
+FINGRID_DIR = ROOT / "data" / "external" / "source" / "fingrid"
+# Fingrid dataset IDs: 268 = wind capacity used in its wind forecast, 267 = solar capacity used in its solar forecast
+FINGRID_DATASETS = {schema.WIND_CAPACITY: "268", schema.SOLAR_CAPACITY: "267"}
 
 # combine all yearly raw files of one series into one with a sorted UTC index
 def read_series(code, series):
@@ -29,6 +35,7 @@ def to_hourly(df, index):
 # clean price data
 def clean_price(code, index):
     raw = read_series(code, "price")
+    raw = raw[(raw.index >= index.min()) & (raw.index < index.max() + pd.Timedelta(hours=1))] # only the zone's period
     currencies = set(raw["Currency"].dropna())
     if currencies != {"EUR"}: # check to ensure consistent currencies
         raise NotImplementedError(f"{code}: non-EUR prices found {currencies}; add FX conversion first")
@@ -44,6 +51,10 @@ def clean_wind_solar(code, index):
     raw = read_series(code, "wind_solar_forecast")
     if "Wind Offshore" not in raw.columns: # for zones without offshore wind
         raw["Wind Offshore"] = 0.0
+    # offshore not yet reported before its first value -> 0; later gaps stay missing (dropped)
+    first = raw["Wind Offshore"].first_valid_index()
+    if first is not None:
+        raw.loc[raw.index < first, "Wind Offshore"] = 0.0
     hourly = to_hourly(raw[["Solar", "Wind Onshore", "Wind Offshore"]], index)
     return pd.DataFrame({
         schema.WIND_FORECAST: hourly["Wind Onshore"] + hourly["Wind Offshore"], # combine wind onshore and wind offshore
@@ -62,6 +73,34 @@ def annual_capacity(code, tz):
     }, index=years)
     return annual[~annual.index.duplicated(keep="last")].sort_index()
 
+# energinet capacity (specifically for DK1 due to missing data in ENTSO-E)
+def energinet_capacity(code):
+    lo, hi = ENERGINET_AREAS[code]
+    raw = pd.read_csv(ENERGINET_FILE, parse_dates=["Month"])
+    raw = raw[raw["MunicipalityNo"].between(lo, hi)]
+    jan = raw[raw["Month"].dt.month == 1] # January snapshot, same timing as ENTSO-E
+    annual = jan.groupby(jan["Month"].dt.year)[
+        ["OnshoreWindCapacity", "OffshoreWindCapacity", "SolarPowerCapacity"]].sum()
+    return pd.DataFrame({
+        schema.WIND_CAPACITY: annual["OnshoreWindCapacity"] + annual["OffshoreWindCapacity"],
+        schema.SOLAR_CAPACITY: annual["SolarPowerCapacity"]
+    })
+
+# read one Fingrid capacity file (hourly, UTC; semicolon-separated; value in the third column)
+def _read_fingrid(dataset):
+    path = next(FINGRID_DIR.glob(f"{dataset}_*.csv"))
+    df = pd.read_csv(path, sep=";")
+    return pd.Series(df.iloc[:, 2].values, index=pd.to_datetime(df["startTime"], utc=True)).sort_index()
+
+# fingrid capacity (Finland; ENTSO-E solar capacity far too low): value at the first hour of each January
+def fingrid_capacity(tz):
+    cols = {}
+    for col, dataset in FINGRID_DATASETS.items():
+        local = _read_fingrid(dataset).tz_convert(tz)
+        jan = local[local.index.month == 1]
+        cols[col] = jan.groupby(jan.index.year).first()
+    return pd.DataFrame(cols)
+
 # check annual capacity data for missing years and exact repeats to feed into interpolation
 def check_capacity(annual, code):
     missing = sorted(set(range(annual.index.min(), annual.index.max() + 1)) - set(annual.index))
@@ -79,7 +118,12 @@ def check_capacity(annual, code):
 # set up final clean (interpolated capacity values) - monthly steps between year to year January values with each hour getting the monthly value
 def clean_capacity(code, zone, index):
     tz = zone["timezone"]
-    annual = annual_capacity(code, tz)
+    if zone["capacity_source"] == "energinet":
+        annual = energinet_capacity(code)
+    elif zone["capacity_source"] == "fingrid":
+        annual = fingrid_capacity(tz)
+    else:
+        annual = annual_capacity(code, tz)
     repeats = check_capacity(annual, code)
     local = index.tz_convert(tz)
     months = pd.period_range(local.min().strftime("%Y-%m"), local.max().strftime("%Y-%m"), freq="M")
@@ -124,3 +168,4 @@ if __name__ == "__main__":
     out = clean_zone(args.zone)
     print(out.head(3), "\n", out.shape)
     print(missing_report(out, get_zone(args.zone)["timezone"]).to_string())
+

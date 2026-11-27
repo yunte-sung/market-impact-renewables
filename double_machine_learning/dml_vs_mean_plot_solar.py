@@ -8,9 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import bootstrap
 import matplotlib as mpl
-from scipy.ndimage import gaussian_filter1d
 
-from analysis_settings import get_analysis_settings
+from analysis_settings import get_analysis_settings, smooth, filter_period
 from data_pipeline import schema
 
 # Settings for the chosen zone
@@ -24,10 +23,12 @@ CURRENCY = S["currency"]
 df = pd.read_csv(S["data_path"])
 df[S["index_col"]] = pd.to_datetime(df[S["index_col"]])
 df.set_index(S["index_col"], inplace=True)
+df = filter_period(df, S)
+print(f"Period {S['period_start']} to {S['period_end']}: {len(df)} hours")
 
-# Solar: same hours as the solar DML model (hours with solar forecast > 0), so both lines are comparable
+# Solar: same hours as the solar DML model (hours with sun up = 0), so both lines are comparable
 if S["solar_daylight_only"]:
-    df = df[df[c[schema.SOLAR_FORECAST]] > 0]
+    df = df[df[c[schema.SUN_UP]] == 1]
 
 # Extract necessary columns
 df = df[[PENETRATION, PRICE]]
@@ -80,12 +81,14 @@ mean_cate_df_solar = results_dataset_solar.groupby('mean_solar_penetration')['ca
 mean_cate_df_solar['lower_ci'] = results_dataset_solar.groupby('mean_solar_penetration')['cate'].quantile(0.1).values
 mean_cate_df_solar['upper_ci'] = results_dataset_solar.groupby('mean_solar_penetration')['cate'].quantile(0.9).values
 
-# Apply Gaussian smoothing
-# sigma_smoothing = np.var(mean_cate_df_solar['mean'])
-sigma_smoothing = 1.5 * np.std(mean_cate_df_solar['mean'])
-mean_cate_df_solar['smoothed_mean'] = gaussian_filter1d(mean_cate_df_solar['mean'], sigma=sigma_smoothing)
-mean_cate_df_solar['smoothed_lower_ci'] = gaussian_filter1d(mean_cate_df_solar['lower_ci'], sigma=sigma_smoothing)
-mean_cate_df_solar['smoothed_upper_ci'] = gaussian_filter1d(mean_cate_df_solar['upper_ci'], sigma=sigma_smoothing)
+# Apply Gaussian smoothing (sigma 0 = none, see analysis_settings)
+sigma_smoothing = S["plot_smoothing_sigma"]
+if sigma_smoothing is None: # original rule, kept for the UK
+    sigma_smoothing = 1.5 * np.std(mean_cate_df_solar['mean'])
+print(f"Smoothing sigma: {sigma_smoothing:.2f} windows")
+mean_cate_df_solar['smoothed_mean'] = smooth(mean_cate_df_solar['mean'], sigma_smoothing)
+mean_cate_df_solar['smoothed_lower_ci'] = smooth(mean_cate_df_solar['lower_ci'], sigma_smoothing)
+mean_cate_df_solar['smoothed_upper_ci'] = smooth(mean_cate_df_solar['upper_ci'], sigma_smoothing)
 
 # Set Helvetica font globally
 plt.rcParams.update({

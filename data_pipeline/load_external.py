@@ -19,7 +19,13 @@ Cost: a slightly staler control, mainly visible in 2022.
 average (correlation 0.995)
 
 3. Carbon price = EEX primary auction prices: contract T3PA only, successful auctions only, same-day auctions averaged.
-Prices are carried forward between auctions; the longest gap is the Phase 3 to 4 break ending 29 January 2021.'''
+Prices are carried forward between auctions; the longest gap is the Phase 3 to 4 break ending 29 January 2021.
+
+4. Spain uses the MIBGAS-ES Index (daily, PVB), a spot price, because it is the price the gas cap formula uses and no 
+free month-ahead history exists; this is a known difference from the TTF front-month used for the other zones.
+
+5. Iberian gas cap: gas price = min(lagged MIBGAS, monthly reference price) from 15 Jun 2022 to 31 Dec 2023; plants 
+were compensated for the difference, so this is the gas cost that drove power prices.'''
 
 import argparse
 import re
@@ -33,6 +39,13 @@ from zone_settings import get_external, get_zone
 PRICE_LAG_DAYS = 2
 FIRST_EUA_YEAR = 2017
 MAX_FILL_WARN_DAYS = 7 # warn when a price is carried forward longer than this
+
+# Iberian gas cap: monthly reference gas price (EUR/MWh) from RDL 10/2022 and RDL 3/2023 (extension)
+IBERIAN_CAP_START = pd.Timestamp("2022-06-15")
+IBERIAN_CAP_END = pd.Timestamp("2023-12-31") # inclusive
+IBERIAN_CAP = {**{f"2022-{m:02d}": 40.0 for m in range(6, 13)},
+    "2023-01": 45.0, "2023-02": 50.0, "2023-03": 55.0, "2023-04": 56.1, "2023-05": 57.2, "2023-06": 58.3,
+    "2023-07": 59.4, "2023-08": 60.6, "2023-09": 61.7, "2023-10": 62.8, "2023-11": 63.9, "2023-12": 65.0}
 
 # import and sort gas TTF file
 def read_ttf(source):
@@ -62,7 +75,25 @@ def read_eua(source_dir):
     df["Date"] = pd.to_datetime(df["Date"]).dt.normalize()
     return df.groupby("Date")["Auction Price €/tCO2"].mean().sort_index()
 
-READERS = {"gas_ttf": read_ttf, "carbon_price": read_eua}
+# read one MIBGAS annual file: daily MIBGAS-ES Index (PVB); sheet and column names change between years
+def _read_mibgas_file(path):
+    year = int(re.search(r"MIBGAS_Data_(\d{4})", path.name).group(1))
+    sheet = "Indices" if year <= 2022 else "MIBGAS Indexes"
+    df = pd.read_excel(path, sheet_name=sheet)
+    if "Area" in df.columns:
+        df = df[df["Area"] == "ES"] # 2021-2022 files also contain Portuguese rows
+    col = next(c for c in df.columns if re.match(r"MIBGAS(-ES)? Index", c)) # "MIBGAS-ES Index" or "MIBGAS Index"
+    s = pd.Series(df[col].astype(float).values, index=pd.to_datetime(df["Delivery day"]))
+    return s[s.index.year == year]
+
+# combine all MIBGAS annual files into one daily series
+def read_mibgas(source_dir):
+    s = pd.concat(_read_mibgas_file(p) for p in sorted(source_dir.glob("MIBGAS_Data_*.xlsx")))
+    if s.index.duplicated().any():
+        raise ValueError("MIBGAS: duplicate delivery days")
+    return s.sort_index()
+
+READERS = {"gas_ttf": read_ttf, "carbon_price": read_eua, "gas_mibgas": read_mibgas}
 
 # create clean daily series from each external source (i.e. gas and carbon)
 def daily_series(key, rebuild=False):
@@ -94,14 +125,23 @@ def to_hours(daily, index, tz, name):
         print(f"WARNING {name}: price carried forward {age.max()} days (up to {worst})")
     return pd.Series(filled.reindex(hour_dates).values, index=index, name=name)
 
+# during the Iberian cap, gas plants bid as if gas cost at most the reference price of the delivery month
+# applied after the lag: gas = min(lagged MIBGAS, cap of the hour's local month)
+def apply_iberian_cap(gas, tz):
+    local = gas.index.tz_convert(tz).tz_localize(None)
+    cap = pd.Series(local.to_period("M").astype(str).map(IBERIAN_CAP), index=gas.index, dtype=float)
+    active = (local >= IBERIAN_CAP_START) & (local < IBERIAN_CAP_END + pd.Timedelta(days=1))
+    capped = gas.where(gas <= cap, cap)
+    return gas.where(~active, capped)
+
 # hourly series for gas and carbon created with previous function added to hourly ENTSO-E data for each zone
 def external_for_zone(code, rebuild=False):
     zone = get_zone(code)
-    if zone["gas_cap"] is not None:
-        raise NotImplementedError(f"{code}: gas cap {zone["gas_cap"]!r} not implemented yet")
     index = hourly_index(zone)
     index.name = schema.TIMESTAMP
     gas = to_hours(daily_series(zone["gas_series"], rebuild), index, zone["timezone"], schema.GAS_PRICE)
+    if zone["gas_cap"] == "iberian":
+        gas = apply_iberian_cap(gas, zone["timezone"])
     co2 = to_hours(daily_series(zone["co2_series"], rebuild), index, zone["timezone"], schema.CO2_PRICE)
     return pd.concat([gas, co2], axis=1)
 

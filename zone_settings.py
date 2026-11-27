@@ -15,9 +15,10 @@ CONFIG_PATH = ROOT / "config" / "zones.yaml" # path to get to zones.yaml
 ZONE_KEYS = {
     "name", "entsoe_code", "timezone", "start_date", "end_date",
     "daylight_location", "gas_series", "co2_series", "gas_cap",
-    "extra_controls", "neighbours"
+    "extra_controls", "neighbours", "capacity_source"
 }
 GAS_CAPS = {None, "iberian"} # notes allowed values for gas_cap (only Iberian gas cap considered)
+CAPACITY_SOURCES = {"entsoe", "energinet", "fingrid"}
 
 # load zones.yaml file
 def _load_config():
@@ -53,6 +54,8 @@ def get_zone(code):
             raise ValueError(f"{code}: {key} {zone[key]!r} not in external_series")
     if zone["gas_cap"] not in GAS_CAPS:
         raise ValueError(f"{code}: gas cap must be one of {GAS_CAPS}")
+    if zone["capacity_source"] not in CAPACITY_SOURCES:
+        raise ValueError(f"{code}: capacity_source must be one of {CAPACITY_SOURCES}")
 
     # conversions from basic entry format in yaml for further use
     tz = zone["timezone"]
